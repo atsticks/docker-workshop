@@ -1,0 +1,96 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+## Solutions Part 1 - Getting Started
+
+### Exercise 1: Install Docker and the required tools
+
+```shell
+$ docker version
+Client:
+ Version:      17.06.0-ce
+ API version:  1.30
+ Go version:   go1.8.3
+ Git commit:   02c1d87
+ Built:        Fri Jun 23 21:30:30 2017
+ OS/Arch:      windows/amd64
+
+Server:
+ Version:      17.06.0-ce
+ API version:  1.30 (minimum version 1.12)
+ Go version:   go1.8.3
+ Git commit:   02c1d87
+ Built:        Fri Jun 23 21:51:55 2017
+ OS/Arch:      linux/amd64
+ Experimental: false
+
+$ docker container run busybox echo "Hello World"
+Hello World
+
+```
+
+
+### Exercise 2: RUN a NGINX Container and expose a Port
+
+On Linux:
+```
+docker run -d -p 4000:80 nginx
+google-chrome localhost:4000
+```
+
+On Mac:
+```
+docker run -d -p 4000:80 nginx
+open "http://$(docker-machine ip default):4000"
+```
+
+
+### Exercise 3: RUN a Container with a Volume
+
+NOTE: Make sure to be on `Docker Workshop` directory since we'll use volume mounts in the containers of directories
+of the repository.
+
+On Linux:
+```
+docker run -d -p 4001:80 -v $(pwd)/code/hello-world/site/:/usr/share/nginx/html:ro nginx
+google-chrome localhost:4001
+```
+
+On Windows:
+```
+docker run -d -p 4001:80 -v $(pwd)/code/hello-world/site/:/usr/share/nginx/html:ro nginx
+explorer "http://$(docker-machine ip default):4001"
+
+On Mac:
+```
+docker run -d -p 4001:80 -v $(pwd)/code/hello-world/site/:/usr/share/nginx/html:ro nginx
+open "http://$(docker-machine ip default):4001"
+```
+
+* **-v**: Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
+* The volume is **linked** inside the container. Any external changes are visible directly inside the container.
+* This example breaks the immutability of the container, good for debuging, not recommended for production
+(Volumes should be used for data, not code)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

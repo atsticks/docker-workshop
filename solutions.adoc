@@ -1,0 +1,11 @@
+= Docker One Day Trip - Solutions
+:title-logo-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+:toc:
+:toclevels: 2
+:toc-title: Solutions Overview
+
+<<<
+include::docker-basics/01-solutions.adoc[]
+<<<
+include::docker-basics/02-solutions.adoc[]
+<<<

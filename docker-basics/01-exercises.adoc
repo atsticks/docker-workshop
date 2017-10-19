@@ -1,0 +1,231 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+## Exercises Part 1 - Getting Started
+
+### Exercise 1: Install Docker and the required tools
+
+Yep, not really an exercise, but actually without this step being done, this workshop will only by half of the fun.
+So let's ensure things are working on your machine.
+
+
+### Exercise 2: RUN a NGINX Container and expose a Port
+
+In this exercise you will start a web server running completely in a Docker container:
+
+* get the `nginx` image
+* Map the `nginx` port to port `4000` on your localhost
+* Start the nginx server as a background daemon (detached mode)
+
+NOTE: For more info about the `nginx` container, see https://registry.hub.docker.com/_/nginx/[here]
+
+
+### Exercise 3: RUN a NGINX Container with a Volume
+
+
+In this exercise we will mount a local directory as the `nginx` html server content root:
+
+* start another nginx instance and map it to the local port 4001
+* Mount your `${WORKSHOP_ROOT}/code/hello-world/site` directory to `/usr/share/nginx/html` in the container FS
+  (read-only)
+
+NOTE: Make sure to be on `${WORKSHOP_ROOT}` directory since we'll use volume mounts in the containers of directories
+     of the repository.
+
+On Linux:
+```
+docker run -d -p 4001:80 -v $(pwd)/hello-world/site/:/usr/share/nginx/html:ro nginx
+google-chrome localhost:4001
+```
+
+On Windows:
+```
+docker run -d -p 4001:80 -v $(pwd)/hello-world/site/:/usr/share/nginx/html:ro nginx
+explorer "http://$(docker-machine ip default):4001"
+```
+
+On Mac:
+```
+docker run -d -p 4001:80 -v $(pwd)/hello-world/site/:/usr/share/nginx/html:ro nginx
+open "http://$(docker-machine ip default):4001"
+```
+
+* **-v**: Bind mount a volume (e.g., from the host: -v /host:/container, from docker: -v /container)
+* The volume is **linked** inside the container. Any external changes are visible directly inside the container.
+* This example breaks the immutability of the container, good for debuging, not recommended for production
+(Volumes should be used for data, not code)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# Dockerfile Basics
+
+### BUILD a Git Client Container
+
+Create a Git Container manually:
+
+```
+docker run -it --name git alpine sh
+  apk --update add git
+  git version
+  exit
+docker commit git docker-git
+docker rm git
+docker run --rm -it docker-git git version
+docker rmi docker-git
+```
+
+* **--name**: Assign a name to the container
+* **commit**: Create a new image from a container's changes
+* **rm**: Remove one or more containers
+* **rmi**: Remove one or more images
+* **--rm**: Automatically remove the container when it exits
+
+Create a Git Container with Dockerfile:
+
+```
+cd code/docker-git
+docker build -t docker-git .
+docker run -it docker-git git version
+```
+
+* **build**: Build an image from a Dockerfile
+
+[code/docker-git/Dockerfile](../../code/docker-git/Dockerfile)
+```
+FROM alpine:3.3
+RUN apk update
+RUN apk add git
+```
+
+* The **FROM** instruction sets the Base Image for subsequent instructions
+* The **RUN** instruction will execute any commands in a new layer on top of the current image and commit the results
+
+
+### BUILD an Apache Server Container
+
+Create an Apache Server Container with Dockerfile:
+
+```
+cd code/docker-apache2
+docker build -t docker-apache2 .
+docker run -d -p 4003:80 docker-apache2
+```
+
+On Linux:
+```
+google-chrome localhost:4003
+```
+
+On Mac:
+```
+open "http://$(docker-machine ip default):4003"
+```
+
+[code/docker-apache2/Dockerfile](../../code/docker-apache2/Dockerfile)
+```
+FROM alpine:3.3
+RUN apk --update add apache2 && rm -rf /var/cache/apk/*
+RUN mkdir -p /run/apache2
+EXPOSE 80
+CMD httpd -D FOREGROUND
+```
+
+* The **EXPOSE** instructions informs Docker that the container will listen on the specified network ports at runtime
+* The **CMD** instruction sets the command to be executed when running the image
+
+
+### BUILD a Static website Image
+
+```
+cd code/hello-world
+docker build -t hello-world .
+docker run -d --name hello -P hello-world
+```
+
+On Linux:
+```
+google-chrome $(docker port hello 80)
+```
+
+On Mac:
+```
+open "http://$(docker-machine ip default):${$(docker port hello 80)##*:}"
+```
+
+* **-P**: Publish all exposed ports to the host interfaces
+* **port**: Lookup the public-facing port that is NAT-ed to PRIVATE_PORT
+
+[code/hello-world/Dockerfile](../../code/hello-world/Dockerfile)
+```
+FROM nginx:1.8-alpine
+ADD site /usr/share/nginx/html
+```
+
+* The **ADD** instruction will copy new files from <src> and add them to the container's filesystem at path <dest>
+
+
+## Exercise 2 (10 mins)
+
+* Build your website with Dockerfile
+* Run an instance
+* Share your (non-localhost) url on [Slack](https://dockerbcn.herokuapp.com)
+
+
+### PUSH Image to a Registry
+
+For this step, we'll need to launch a registry:
+
+```
+docker run -d -p 5000:5000 --name registry registry:2
+```
+
+Then tag your image under the registry namespace and push it there:
+
+```
+REGISTRY=localhost:5000
+docker tag hello-world $REGISTRY/$(whoami)/hello-world
+docker push $REGISTRY/$(whoami)/hello-world
+```
+
+* **tag**: Tag an image into a repository
+* **push**: Push an image or a repository to a Docker registry server
+
+
+## Exercise 3 (10 mins)
+
+* Push your website to the local Registry (use your github username)
+* Push your website image
+* Share your image name on [Slack](https://dockerbcn.herokuapp.com)
+
+
+### PULL Image from a Repository
+
+```
+docker pull $REGISTRY/$(whoami)/hello-world
+docker run -d -P --name=registry-hello $REGISTRY/$(whoami)/hello-world
+```
+
+On Linux:
+```
+google-chrome $(docker port registry-hello 80)
+```
+
+On Mac:
+```
+open "http://$(docker-machine ip default):${$(docker port registry-hello 80)##*:}"
+```
+
+* **pull**: Pull an image or a repository from a Docker registry server
+

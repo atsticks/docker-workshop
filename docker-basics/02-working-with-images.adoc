@@ -1,0 +1,721 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+= Docker One Day Trip - Working with Images
+
+So far we have been using container images downloaded from Docker's public registry. In this tutorial we will
+uncover further features and see how we can build and manager our own images.
+
+== Searching for images
+
+Docker allows you to search for images:
+
+```
+docker search -s 10 nginx
+```
+
+* **-s**: Only displays with at least x stars
+
+== Building a Container Image from scratch
+=== Building our first container
+
+The `Dockerfile` is a special file that instructs `docker build` command how to build an image.
+So let's create the most simple Dockerfile:
+
+```
+echo "My first DockerImage says Hello $@!" > hello.sh
+chmod ogu+x hello.sh
+```
+
+Then create a file named +Dockerfile+ with the following contents:
+
+```dockerfile
+FROM scratch
+ADD hello.sh /hello.sh
+```
+
+Hereby
+
+* `FROM scratch` instructs a Docker build process to use empty image to start building the container image.
+* `ADD hello.sh /hello.sh` adds file `hello.sh` to the container's root path `/hello.sh`.
+
+Then let's _build_ the Docker image:
+
+```
+$ docker container build -t hello .
+Sending build context to Docker daemon 3.072 kB
+Step 1 : FROM scratch
+ --->
+Step 2 : ADD hello.sh /hello.sh
+ ---> 4dce466cf3de
+Removing intermediate container dc8a5b93d5a8
+Successfully built 4dce466cf3de
+```
+
+
+=== Viewing images
+
+You can use `docker images ls` command to display images that we have built (or installed):
+
+```
+$ docker images ls
+REPOSITORY                                    TAG                 IMAGE ID            CREATED             SIZE
+hello                                         latest              4dce466cf3de        10 minutes ago      34 B
+```
+
+* Repository - a name of the local (on your computer) or remote repository. Our current repository is local and is
+  called `hello`.
+* Tag - indicates the version of our image, Docker sets `latest` tag automatically if not specified.
+* Image ID - unique image ID.
+* Size - the size of our image is just a few bytes.
+
+NOTE: Docker images are very different from virtual image formats. Because Docker does not boot any operating system,
+      but simply runs linux process in isolation, we don't need any kernel, drivers or libraries to ship with the
+      image, so it could be as tiny as several bytes!
+
+
+=== Running the image
+
+So let's run our image. Surprisingly this gives as an error:
+
+```bash
+$ docker container run hello /hello.sh
+write pipe: bad file descriptor
+```
+
+The problem is: our container is empty! There is no shell and the script won't be able to start.
+So let's build our example using a small basic image, which contains a proper shell
+environment. In our case we use `busybox`. To do so we have to adapt our `Dockerfile`:
+
+```Dockerfile
+FROM busybox
+ADD hello.sh /hello.sh
+```
+
+Similarly let's build the new image:
+
+```bash
+$ docker build -t hello .
+Sending build context to Docker daemon 3.072 kB
+Step 1 : FROM busybox
+ ---> 00f017a8c2a6
+Step 2 : ADD hello.sh /hello.sh
+ ---> c8c3f1ea6ede
+Removing intermediate container fa59f3921ff8
+Successfully built c8c3f1ea6ede
+```
+
+Listing the image shows that image id and size has increased:
+
+```bash
+$ docker images
+REPOSITORY                                    TAG                 IMAGE ID            CREATED             SIZE
+hello                                         latest              c8c3f1ea6ede        10 minutes ago      1.11 MB
+```
+
+We can run our example now:
+
+```bash
+$ docker run hello /hello.sh
+My first DockerImage says Hello !
+```
+
+=== Versioning
+
+Let us adapt the +hello.sh+ file and roll a new version of our image called `v2`:
+
+```bash
+echo "My first DockerImage says AGAIN Hello $@!" > hello.sh
+chmod ogu+x hello.sh
+$ docker build -t hello:v2 .
+```
+
+We will now see 2 images: `hello:v2` and `hello:latest`
+
+```bash
+$ docker images ls
+hello                                         v2                  195aa31a5e4d        2 seconds ago       1.11 MB
+hello                                         latest              47060b048841        20 minutes ago      1.11 MB
+```
+
+NOTE: The Tag `latest` will not automatically point to the latest version: we will have to manually update it.
+
+So execute the script using `image:tag` notation to define the exact version we want to run:
+
+```bash
+$ docker container run hello:v2 /hello.sh
+My first DockerImage says AGAIN Hello!
+```
+
+=== Defining an Entry point
+
+We can improve our image by supplying an `entrypoint`:
+
+```Dockerfile
+FROM busybox
+ADD hello.sh /hello.sh
+ENTRYPOINT ["/hello.sh"]
+```
+
+Then again, let's build a new container image:
+
+```bash
+$ docker container build -t hello:v3 .
+```
+
+The entrypoint remembers the command to be executed on start, even if you don't supply any arguments. So
+we can start our image without passing any arguments:
+
+```bash
+$ docker container run hello:v3
+My first DockerImage says AGAIN Hello !
+```
+
+=== Passing additional Parameters
+
+We also can pass additional parameters. They will be forwarded into the container as arguments:
+
+```bash
+$ docker container run hello:v3 foo
+My first DockerImage says AGAIN Hello foo!
+```
+
+This magic happens because our _hello.sh_ script prints passed arguments:
+
+```bash
+#!/bin/sh
+
+echo "My first DockerImage says AGAIN Hello $@!"
+```
+
+
+=== Using the Container Environment
+
+We can pass environment variables during build and during runtime as well. As an example we edit our +hello.sh+
+shell script:
+
+```bash
+#!/bin/sh
+
+echo "My DockerImage says Hello $MESSAGE!"
+```
+
+We can now define the MESSAGE as a fixed environment parameter.
+Within the +Dockerfile+ we now use `ENV` directive to provide an environment variable:
+
+```Dockerfile
+FROM busybox
+ADD hello.sh /hello.sh
+ENV MESSAGE World
+ENTRYPOINT ["/hello.sh"]
+```
+
+If we build the new version as follows:
+
+```bash
+$ docker container build -t hello:v4 .
+$ docker container run -e MESSAGE=World hello:v4
+My DockerImage says Hello World!
+```
+
+
+==== Build arguments
+
+Sometimes it is helpful to supply arguments to the image build process
+(for example, a user ID to create inside the container). We can supply build arguments
+as flags to `docker build` as well:
+
+So let's use the passed build argument to set the container environment in the +Dockerfile+:
+
+```Dockerfile
+FROM busybox
+ADD hello.sh /hello.sh
+ARG MESSAGE
+ENV MESSAGE $MESSAGE
+ENTRYPOINT ["/hello.sh"]
+```
+
+Then build and execute the container:
+
+```bash
+$ docker build --build-arg=MESSAGE="World and others" -t hello:v5 .
+$ docker run hello:v5
+My DockerImage says Hello World and others!
+```
+
+
+==== Build layers and Caching
+
+===== _Caching_:
+Let's take a look at the image in the tutorials's cache directory:
+
+```bash
+$ ls -l ./cache/
+total 12
+-rw-rw-r-- 1 atsticks atsticks 76 Mar 24 16:23 Dockerfile
+-rw-rw-r-- 1 atsticks atsticks  6 Mar 24 16:23 file
+-rwxrwxr-x 1 atsticks atsticks 40 Mar 24 16:23 script.sh
+```
+
+Let's use the files to build yet another version of a 'hello' image:
+
+```bash
+$ cd ./cache
+$ docker container build -t hello:v6 .
+
+Sending build context to Docker daemon 4.096 kB
+Step 1 : FROM busybox
+ ---> 00f017a8c2a6
+Step 2 : ADD file /file
+ ---> 6f48df47cb1d
+Step 3 : ADD script.sh /script.sh
+ ---> b052fd11bcc6
+Removing intermediate container c555e8ab29dc
+Step 4 : ENTRYPOINT /script.sh
+ ---> Running in 50f057fd89cb
+ ---> db7c6f36cba1
+Removing intermediate container 50f057fd89cb
+Successfully built db7c6f36cba1
+
+$ docker run hello:v6
+hello, hello!
+```
+
+Now let's update the +script.sh+ by replacing it with +script2.sh+:
+
+```bash
+cp script2.sh script.sh
+```
+
+Now rebuild a new version of 'hello'. As expected the output is the same:
+
+```bash
+$ docker build -t hello:v7 .
+$ docker run hello:v7
+Hello, hello!
+```
+
+But mind the difference in the build output:
+
+```
+$ docker build -t hello:v7 .
+Sending build context to Docker daemon  5.12 kB
+Step 1 : FROM busybox
+ ---> 00f017a8c2a6
+Step 2 : ADD file /file
+ ---> Using cache                              <1>
+ ---> 6f48df47cb1d
+Step 3 : ADD script.sh /script.sh
+ ---> b187172076e2
+Removing intermediate container 7afa2631d677
+Step 4 : ENTRYPOINT /script.sh
+ ---> Running in 51217447e66c
+ ---> d0ec3cfed6f7
+Removing intermediate container 51217447e66c
+Successfully built d0ec3cfed6f7
+```
+<1> This part is read from the cache.
+
+Docker executes every command in a special container. It detects the fact that the content has (or has not)
+changed, and instead of re-exectuing the command, uses cached value instead. This helps to speed up builds, but
+sometimes introduces problems.
+
+NOTE: You can always turn caching off by using the `--no-cache=true` option for the `docker build` command.
+
+===== _Layers_:
+Docker images are composed of layers:
+
+image::https://docs.docker.com/engine/userguide/storagedriver/images/image-layers.jpg[]
+
+Every layer is a the result of the execution of a command in the Dockerfile. Basically every command in a
++Dockerfile+ adds a layer.
+
+
+===== _An example_:
+
+The most frequently used command is `RUN`: it executes the command in a container,
+captures the output and records it as an image layer.
+
+Let's us use existing package managers to compose our images:
+
+```Dockerfile
+FROM ubuntu:14.04
+RUN apt-get update
+RUN apt-get install -y curl
+ENTRYPOINT curl
+```
+
+The output of this build will look more like a real Linux install:
+
+```bash
+$ cd docker/ubuntu
+$ docker build -t mycurl .
+```
+
+We can now use our newly created _mycurl_ to curl pages:
+
+```bash
+$ docker run mycurl https://google.com
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100   220  100   220    0     0   1377      0 --:--:-- --:--:-- --:--:--  1383
+<HTML><HEAD><meta http-equiv="content-type" content="text/html;charset=utf-8">
+<TITLE>301 Moved</TITLE></HEAD><BODY>
+<H1>301 Moved</H1>
+The document has moved
+<A HREF="https://www.google.com/">here</A>.
+</BODY></HTML>
+```
+
+However, it all comes at a price:
+
+```bash
+$ docker image ls
+REPOSITORY                                    TAG                 IMAGE ID            CREATED             SIZE
+mycurl                                        latest              50928f386c70        51 seconds ago      221.8 MB
+```
+
+That is 220MB for curl! As we know, now there is no good reason to have images with all the OS inside. If you still
+need it though, Docker will save you some space by re-using the base layer, so images with slightly different bases
+would not repeat each other.
+
+
+== Operations with images
+
+Executing `docker image` without parameters gives you
+a summary of other image related commands:
+
+```bash
+$ docker image
+
+Usage:  docker image COMMAND
+
+Manage images
+
+Options:
+    --help   Print usage
+
+Commands:
+build       Build an image from a Dockerfile
+history     Show the history of an image
+import      Import the contents from a tarball to create a filesystem image
+inspect     Display detailed information on one or more images
+load        Load an image from a tar archive or STDIN
+ls          List images
+prune       Remove unused images
+pull        Pull an image or a repository from a registry
+push        Push an image or a repository to a registry
+rm          Remove one or more images
+save        Save one or more images to a tar archive (streamed to STDOUT by default)
+tag         Create a tag TARGET_IMAGE that refers to SOURCE_IMAGE
+
+Run 'docker image COMMAND --help' for more information on a command.
+```
+
+
+=== Listing the locally installed images
+
+You are already familiar with one command, `docker image ls` to get a listing of all currently installed images:
+
+```shell
+$ docker image ls
+REPOSITORY          TAG                 IMAGE ID            CREATED             SIZE
+jenkins/jenkins     lts                 e6b6a36fca5a        7 days ago          814MB
+python              3.3                 9d0241a4a34d        4 weeks ago         679MB
+mongo               latest              b39de1d79a53        2 months ago        359MB
+busybox             latest              efe10ee6727f        3 months ago        1.13MB
+hello               v7                  d0ec3cfed6f7        33 minutes ago      1.11 MB
+hello               v6                  db7c6f36cba1        42 minutes ago      1.11 MB
+hello               v5                  1fbecb029c8e        About an hour ago   1.11 MB
+hello               v4                  ddb5bc88ebf9        About an hour ago   1.11 MB
+hello               v3                  eb07be15b16a        About an hour ago   1.11 MB
+hello               v2                  195aa31a5e4d        3 hours ago         1.11 MB
+hello               latest              47060b048841        3 hours ago         1.11 MB
+```
+
+
+=== Inspecting images
+
+You can inspect a cached image:
+
+```shell
+$ docker image inspect busybox
+[
+    {
+        "Id": "sha256:efe10ee6727fe52d2db2eb5045518fe98d8e31fdad1cbdd5e1f737018c349ebb",
+        "RepoTags": [
+            "busybox:latest"
+        ],
+        "RepoDigests": [
+            "busybox@sha256:2605a2c4875ce5eb27a9f7403263190cd1af31e48a2044d400320548356251c4"
+        ],
+        "Parent": "",
+        "Comment": "",
+        "Created": "2017-07-19T23:34:19.030879144Z",
+        "Container": "023595dd42103f71440c07e0871678156d62bf28428cbd7685690ae838191f62",
+        "ContainerConfig": {
+            "Hostname": "44c72a15738e",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "/bin/sh",
+                "-c",
+                "#(nop) ",
+                "CMD [\"sh\"]"
+            ],
+            "ArgsEscaped": true,
+            "Image": "sha256:ed8808c239d47dbafc07d08ab8cd4a00cc1f6960f3a3899038af39beea060d3a",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "OnBuild": null,
+            "Labels": {}
+        },
+        "DockerVersion": "17.03.1-ce",
+        "Author": "",
+        "Config": {
+            "Hostname": "44c72a15738e",
+            "Domainname": "",
+            "User": "",
+            "AttachStdin": false,
+            "AttachStdout": false,
+            "AttachStderr": false,
+            "Tty": false,
+            "OpenStdin": false,
+            "StdinOnce": false,
+            "Env": [
+                "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            ],
+            "Cmd": [
+                "sh"
+            ],
+            "ArgsEscaped": true,
+            "Image": "sha256:ed8808c239d47dbafc07d08ab8cd4a00cc1f6960f3a3899038af39beea060d3a",
+            "Volumes": null,
+            "WorkingDir": "",
+            "Entrypoint": null,
+            "OnBuild": null,
+            "Labels": {}
+        },
+        "Architecture": "amd64",
+        "Os": "linux",
+        "Size": 1129193,
+        "VirtualSize": 1129193,
+        "GraphDriver": {
+            "Data": null,
+            "Name": "aufs"
+        },
+        "RootFS": {
+            "Type": "layers",
+            "Layers": [
+                "sha256:08c2295a7fa5c220b0f60c994362d290429ad92f6e0235509db91582809442f3"
+            ]
+        }
+    }
+]
+
+```
+
+=== Removing images and containers
+
+Let's start with removing the image that takes too much disk space:
+
+```
+$ docker rmi mycurl
+Error response from daemon: conflict: unable to remove repository reference "mycurl" (must force) - container 292d1e8d5103 is using its referenced image 50928f386c70
+```
+
+Docker complains that there are containers using this image. How is this possible? We thought that all our containers
+are gone. Actually, Docker keeps track of all containers, even those that have stopped:
+
+```bash
+$ docker container ls -a
+CONTAINER ID        IMAGE                        COMMAND                   CREATED             STATUS                           PORTS                    NAMES
+292d1e8d5103        mycurl                       "curl https://google."    5 minutes ago       Exited (0) 5 minutes ago                                  cranky_lalande
+f79c361a24f9        440a0da6d69e                 "/bin/sh -c curl"         5 minutes ago       Exited (2) 5 minutes ago                                  nauseous_sinoussi
+01825fd28a50        440a0da6d69e                 "/bin/sh -c curl --he"    6 minutes ago       Exited (2) 5 minutes ago                                  high_davinci
+95ffb2131c89        440a0da6d69e                 "/bin/sh -c curl http"    6 minutes ago       Exited (2) 6 minutes ago                                  lonely_sinoussi
+```
+
+So let's delete first the container...
+
+```bash
+$ docker container rm 292d1e8d5103
+292d1e8d5103
+```
+
+...and then the image:
+
+```bash
+$ docker image rm mycurl
+Untagged: mycurl:latest
+Deleted: sha256:50928f386c704610fb16d3ca971904f3150f3702db962a4770958b8bedd9759b
+```
+
+=== Tagging images
+
+`docker image tag` helps us to tag und untag images.
+
+We have quite a lot of versions of `hello` built, but latest still points to the old `v1`.
+
+```
+$ docker image ls | grep hello
+hello                                         v7                  d0ec3cfed6f7        33 minutes ago      1.11 MB
+hello                                         v6                  db7c6f36cba1        42 minutes ago      1.11 MB
+hello                                         v5                  1fbecb029c8e        About an hour ago   1.11 MB
+hello                                         v4                  ddb5bc88ebf9        About an hour ago   1.11 MB
+hello                                         v3                  eb07be15b16a        About an hour ago   1.11 MB
+hello                                         v2                  195aa31a5e4d        3 hours ago         1.11 MB
+hello                                         latest              47060b048841        3 hours ago         1.11 MB
+```
+
+Let's change that by re-tagging `latest` to `v7`:
+
+```bash
+$ docker image tag hello:v7 hello:latest
+$ docker image ls | grep hello
+hello                                         latest              d0ec3cfed6f7        38 minutes ago      1.11 MB
+hello                                         v7                  d0ec3cfed6f7        38 minutes ago      1.11 MB
+hello                                         v6                  db7c6f36cba1        47 minutes ago      1.11 MB
+hello                                         v5                  1fbecb029c8e        About an hour ago   1.11 MB
+hello                                         v4                  ddb5bc88ebf9        About an hour ago   1.11 MB
+hello                                         v3                  eb07be15b16a        About an hour ago   1.11 MB
+hello                                         v2                  195aa31a5e4d        3 hours ago         1.11 MB
+```
+
+Both `v7` and `latest` point to the same image ID `d0ec3cfed6f7`.
+
+
+== Publishing images
+
+Images are distributed with a special service - `docker registry`.
+Let us spin up a local registry:
+
+```bash
+$ docker container run -p 5000:5000 --name registry -d registry:2
+```
+
+`docker image push` is used to publish images to registries.
+
+To instruct where we want to publish, we need to append registry address to repository name:
+
+```
+$ docker image tag hello:v7 127.0.0.1:5000/hello:v7
+$ docker image push 127.0.0.1:5000/hello:v7
+```
+
+`docker image push` pushed the image to our registry running at _127.0.0.1:5000_.
+
+We can now download the image using the `docker image pull` command:
+
+```bash
+$ docker image pull 127.0.0.1:5000/hello:v7
+v7: Pulling from hello
+Digest: sha256:c472a7ec8ab2b0db8d0839043b24dbda75ca6fa8816cfb6a58e7aaf3714a1423
+Status: Image is up to date for 127.0.0.1:5000/hello:v7
+```
+
+== Importing and Exporting of Images
+
+`docker image save` exports a given image to a tar-archive:
+
+```bash
+$ docker image save busybox -o busybox.tar
+
+$ ls -al busybox.tar
+-rw-r--r-- 1 atsti 197609 1346560 Okt 19 11:00 busybox.tar
+```
+
+Similarly we can load a tar-ed image using `docker image load`:
+
+```bash
+$ docker image load busybox.tar busybox2:latest
+sha256:03441f237f6dc635f18e9aa953b2ccc55b943b4b3247b01aadbf7855946cdbf3
+
+$ docker image ls | grep busybox
+busybox2            latest              03441f237f6d        10 seconds ago      1.34MB
+busybox             latest              efe10ee6727f        3 months ago        1.13MB
+```
+
+Importing as file system image is done using `docker image import`:
+
+```bash
+$ docker image import busybox.tar busybox2:latest
+sha256:03441f237f6dc635f18e9aa953b2ccc55b943b4b3247b01aadbf7855946cdbf3
+```
+
+The difference between these commands is +docker image save+ will indeed produce a tarball, but with all parent layers,
+and all tags + versions. +docker export+ does also produces a tarball, but _without_ any layer/history.
+
+Export is often used when one wants to "flatten" an image:
+
+```bash
+docker export <CONTAINER ID> | docker import - some-image-name:latest
+```
+
+However, once those tarballs are produced, load/import are there to:
+
+* `docker image import` creates *one image* from one tarball which is not even an image (just a filesystem you want
+  to import as an image).
+* `docker image load` creates *potentially multiple images* from a tarred repository (since docker save can save
+  multiple images in a tarball).
+
+
+== Pulling Images
+
+You can also _pull_ images for installing them into the local cache:
+
+```bash
+$ docker image pull mariadb:latest
+latest: Pulling from library/mariadb
+85b1f47fba49: Pull complete
+27dc53f13a11: Pull complete
+095c8ae4182d: Pull complete
+0972f6b9a7de: Pull complete
+c312ce1e4a8b: Pull complete
+8ef2ee37e5f1: Pull complete
+2e4d4911c6f2: Pull complete
+e7dbdb2e68d4: Pull complete
+022f1eddae97: Pull complete
+e34a3759133b: Pull complete
+999fcc677946: Pull complete
+182b32481ab4: Pull complete
+Digest: sha256:5f6f27abd461d2ed3dcbf61da39ecb87d47cbf341fad6e75f5b26246d9a44522
+Status: Downloaded newer image for mariadb:latest
+
+$ docker image ls | grep mariadb
+mariadb             latest              18017b242307        9 days ago          397MB
+
+```
+
+== Further image commands
+
+You can get the history of an image:
+
+```bash
+$ docker image history busybox2
+IMAGE               CREATED             CREATED BY          SIZE                COMMENT
+03441f237f6d        34 minutes ago                          1.34MB              Imported from -
+```
+
+You can prune unused images:
+
+```bash
+$ docker image prune
+IMAGE               CREATED             CREATED BY          SIZE                COMMENT
+03441f237f6d        34 minutes ago                          1.34MB              Imported from -
+```
+
+<<<
+include::02-exercises.adoc[]
+
+
+
