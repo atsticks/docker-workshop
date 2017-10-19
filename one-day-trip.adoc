@@ -34,8 +34,13 @@ NOTE: Under Windows the latest nnative container support requires Windows Profes
 or other version of windows still require the legacy Docker Toolbox installation.
 
 If all is working you are ready for the workshop...
+
 <<<
+
 include::docker-basics/01-getting-started.adoc[]
+
 <<<
+
 include::docker-basics/02-working-with-images.adoc[]
+
 <<<

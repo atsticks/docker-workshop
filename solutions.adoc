@@ -5,7 +5,11 @@
 :toc-title: Solutions Overview
 
 <<<
+
 include::docker-basics/01-solutions.adoc[]
+
 <<<
+
 include::docker-basics/02-solutions.adoc[]
+
 <<<
