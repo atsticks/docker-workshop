@@ -1,0 +1,22 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  labels:
+    name: hello-world
+    visualize: "true"
+  name: hello-world
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: hello-world
+        app: hello-world
+        visualize: "true"
+    spec:
+      containers:
+      - name: hello-world
+        image: 172.30.1.1:5000/myproject/hello-world:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 8090
