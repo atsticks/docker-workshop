@@ -1,0 +1,737 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+== Using Docker with Openshift
+
+In this section we'll introduce a highlevel overview of the functionality provided by Kubernetes/Openshift
+tu ron containers.
+
+=== What is Openshift? Overview of Openshift
+
+Kubernetes is the most popular Container Orchestration Platform today. It is designed and built by Google and
+donated to the Cloud Native Computing Foundation in 2015. Openshift is built on top of Kubernetes, so all that
+is applying to Kubernetes, similarly applies to Openshift. Nevertheless Openshift comes along with quite a few
+outstandig features:
+
+* there is commercial support available by REDHAT INC.
+* Openshift also supports
+  ** full Jenkins integration and Jenkins workflows
+  ** managed stages and image propagation
+  ** Extended RBAC support
+  ** Automatic and customizable mechanisms to easily build your images required from any kind of
+     source repository tree (source-to-image/S2I).
+
+Especially the last point is particularly interesting, since it simplifies the transittion from existing
+developer projects into the containerized deployment world. We will se more details on S2I later in
+this workshop.
+
+NOTE: Though we will use Openshift, basically all the examples also can be performed on a Kubernetes cluster.
+      The main difference, beside the commercial support offering of Redhat, is the OOTB integrationof
+      Jenkins and https://github.com/openshift/source-to-image[source2image]. The basic examples may work
+      also with Kubernetes by simply calling `oc` instead of `kubectrl` on the command line with the same
+      parameters.
+
+
+=== Prerequisites
+
+==== Openshift in a VM: Minishift
+
+In this workshop part we will use a local Openshift cluster all-in-one VM, called _minishift_ (http://minishift.io).
+Ensure to perform the following is installed before proceeding:
+
+- _Docker_ ;-)
+- _powershell_ if you are running on windows.
+- _openshift client tools_: https://developers.openshift.com/managing-your-applications/client-tools.html
+- _minishift_: https://docs.openshift.org/latest/minishift/getting-started/installing.html
+
+Then check your versions:
+
+* *minishift version* -> v1.4.1
+* *minishift openshift version* ->
+  ** openshift v3.6.0+
+  ** kubernetes v1.6.1
+  ** etcd 3.2.1
+
+Finally ensure you also *execute `minishift start` once*. This will actually download the minishift VM
+image and create a local VM on your machine:
+
+[source,listing]
+----
+$ minishift start --memory 4096 --cpus 2 --vm-driver=virtualbox
+-- Starting local OpenShift cluster using 'virtualbox' hypervisor ...
+-- Starting Minishift VM ..................... OK
+-- Checking for IP address ... OK
+-- Checking if external host is reachable from the Minishift VM ...
+   Pinging 8.8.8.8 ... OK
+-- Checking HTTP connectivity from the VM ...
+   Retrieving http://minishift.io/index.html ... OK
+-- Checking if persistent storage volume is mounted ... OK
+-- Checking available disk space ... 43% used OK
+-- OpenShift cluster will be configured with ...
+   Version: v3.6.0
+-- Checking `oc` support for startup flags ...
+   routing-suffix ... OK
+   host-config-dir ... OK
+   host-data-dir ... OK
+   host-pv-dir ... OK
+   host-volumes-dir ... OK
+Starting OpenShift using openshift/origin:v3.6.0 ...
+Pulling image openshift/origin:v3.6.0
+Pulled 1/4 layers, 26% complete
+Pulled 2/4 layers, 61% complete
+Pulled 3/4 layers, 84% complete
+Pulled 4/4 layers, 100% complete
+Extracting
+Image pull complete
+OpenShift server started.
+
+The server is accessible via web console at:
+    https://192.168.99.100:8443
+----
+
+Subsequently you can simply use `minishift stop/start` to start/stop the minishift cluster.
+
+==== Running Openshift as Container
+
+You can also start Openshift as privileged container in your Docker environment (does not work on Windows with Docker
+Toolbox):
+
+[source, listing]
+.Starting Openshift in Docker
+----
+docker run -d --name "origin" \
+        --privileged --pid=host --net=host \
+        -v /:/rootfs:ro -v /var/run:/var/run:rw -v /sys:/sys -v /sys/fs/cgroup:/sys/fs/cgroup:rw \
+        -v /var/lib/docker:/var/lib/docker:rw \
+        -v /var/lib/origin/openshift.local.volumes:/var/lib/origin/openshift.local.volumes:rslave \
+        openshift/origin start
+----
+
+NOTE: `rslave` only works if the Docker version is 1.10 or later and a Red Hat distribution.
+
+If you want to use OpenShift Origin’s aggregated logging, you must add `-v /var/log:/var/log`
+to the docker command line. The origin container must have access to the host’s `var/log/containers/` and
+`/var/log/messages`.
+
+This command:
+
+* starts OpenShift Origin listening on all interfaces on your host (0.0.0.0:8443),
+* starts the web console listening on all interfaces at /console (0.0.0.0:8443),
+* launches an etcd server to store persistent data, and
+* launches the Kubernetes system components.
+
+After the container is started, you can open a console inside the container:
+
+[source, listing]
+----
+$ sudo docker exec -it origin bash
+----
+
+==== Running Openshift Online
+
+Alternatively you also can use _https://www.openshift.com/pricing/index.html[Openshift Online]_. Open an account
+and follow the configuration instructions. After successful approval you should be able to use the
+online instance for our examples as well.
+
+
+=== Resetting your Openshift Cluster
+
+Resetting your Openshift is simple as well. In most cases it is sufficient to run the following commands (ensure you are logged
+in as developer user, not as admin ;-) ):
+
+[source,listing]
+----
+$ oc delete route --all
+...
+$ oc delete service --all
+...
+$ oc delete deployment --all
+...
+$ oc delete pods --all
+...
+$ oc delete templates --all
+...
+$ oc delete cm --all
+----
+
+Dont use *oc delete secrets --all* since you might also delete secrets used by some system components
+in your project.
+
+Normally Openshift requires a few seconds to perform all changes (the CLI will immedeately return, but the deletion
+process might still be ongoing).
+
+If nevertheless things still fail (rarely happening) you can recreate the Openshift VM completely:
+
+
+=== Using Openshift's Docker Registry
+
+Basically Openshift(Minishift) can be configured to use any external Docker registry.
+But for our workshop we will ignore the current local docker installation, but let
+the Docker CLI point to the corresponding instance running in Minishift. After minishift
+has been started, we can evaluate and apply the registry as follows:
+
+[source,listing]
+----
+$ minishift docker-env
+SET DOCKER_TLS_VERIFY=1
+SET DOCKER_HOST=tcp://192.168.99.100:2376
+SET DOCKER_CERT_PATH=C:\Users\atsti\.minishift\certs
+SET DOCKER_API_VERSION=1.24
+REM Run this command to configure your shell:
+REM     @FOR /f "tokens=*" %i IN ('minishift docker-env') DO @call %i
+
+// Apply
+$ eval $(minishift docker-env)
+$
+----
+
+When everything was successful, we should now see the Openshift containers in our Docker listing:
+
+[source,listing]
+----
+$ docker container ls
+CONTAINER ID        IMAGE                              COMMAND                  CREATED             STATUS              PORTS               NAMES
+6acff3c065b5        172.30.1.1:5000/myproject/step5    "java -jar maven/s..."   7 minutes ago       Up 7 minutes                            k8s_step5_spring-boot-crud-admin-step5-6-83tq5_myproject_b9a030f8-ba37-11e7-8868-3a486b583437_2
+3647e84dcb9a        mongo                              "docker-entrypoint..."   7 minutes ago       Up 7 minutes                            k8s_mongo_mongo-controller-3898276464-3pj7b_myproject_c394d3ae-b9c8-11e7-8868-3a486b583437_1
+58e3bbb25bf8        openshift/jenkins-2-centos7        "/usr/libexec/s2i/run"   8 minutes ago       Up 8 minutes                            k8s_jenkins_jenkins-2-jk1wc_myproject_c7ae6f00-ba39-11e7-8868-3a486b583437_1
+a431da6f70a7        gcr.io/kubernetes-helm/tiller      "/tiller"                8 minutes ago       Up 8 minutes                            k8s_tiller_tiller-deploy-2126018646-6wfqz_kube-system_4c2f41e7-b974-11e7-a4fb-8aa6107ef340_2
+7fa20cd4ea74        openshift/origin-docker-registry   "/bin/sh -c '/usr/..."   8 minutes ago       Up 8 minutes                            k8s_registry_docker-registry-1-bzqc6_default_53dea128-b96b-11e7-a4fb-8aa6107ef340_2
+ae40a0977647        openshift/origin-haproxy-router    "/usr/bin/openshif..."   8 minutes ago       Up 8 minutes                            k8s_router_router-1-n70jp_default_52a027d9-b96b-11e7-a4fb-8aa6107ef340_2
+badf1d23a13a        openshift/origin-pod:v3.6.0        "/usr/bin/pod"           8 minutes ago       Up 8 minutes                            k8s_POD_jenkins-2-jk1wc_myproject_c7ae6f00-ba39-11e7-8868-3a486b583437_1
+9205e8baf289        openshift/origin-pod:v3.6.0        "/usr/bin/pod"           8 minutes ago       Up 8 minutes                            k8s_POD_docker-registry-1-bzqc6_default_53dea128-b96b-11e7-a4fb-8aa6107ef340_2
+8009ef427413        openshift/origin-pod:v3.6.0        "/usr/bin/pod"           8 minutes ago       Up 8 minutes                            k8s_POD_tiller-deploy-2126018646-6wfqz_kube-system_4c2f41e7-b974-11e7-a4fb-8aa6107ef340_2
+db907d97bd1f        openshift/origin-pod:v3.6.0        "/usr/bin/pod"           8 minutes ago       Up 8 minutes                            k8s_POD_spring-boot-crud-admin-step5-6-83tq5_myproject_b9a030f8-ba37-11e7-8868-3a486b583437_1
+8618c5bb4dd7        openshift/origin-pod:v3.6.0        "/usr/bin/pod"           8 minutes ago       Up 8 minutes                            k8s_POD_router-1-n70jp_default_52a027d9-b96b-11e7-a4fb-8aa6107ef340_2
+b2464de7660e        openshift/origin-pod:v3.6.0        "/usr/bin/pod"           8 minutes ago       Up 8 minutes                            k8s_POD_mongo-controller-3898276464-3pj7b_myproject_c394d3ae-b9c8-11e7-8868-3a486b583437_1
+aecce539cfd1        openshift/origin:v3.6.0            "/usr/bin/openshif..."   9 minutes ago       Up 9 minutes                            origin
+----
+
+=== Openshift CLI
+
+The command mostly used with Openshift is `oc`. So let's see, what it offers:
+
+[source,listing]
+----
+$ oc --help
+OpenShift Client
+
+This client helps you develop, build, deploy, and run your applications on any OpenShift or Kubernetes compatible
+platform. It also includes the administrative commands for managing a cluster under the 'adm' subcommand.
+
+Basic Commands:
+  types           An introduction to concepts and types
+  login           Log in to a server
+  new-project     Request a new project
+  new-app         Create a new application
+  status          Show an overview of the current project
+  project         Switch to another project
+  projects        Display existing projects
+  explain         Documentation of resources
+  cluster         Start and stop OpenShift cluster
+
+Build and Deploy Commands:
+  rollout         Manage a Kubernetes deployment or OpenShift deployment config
+  deploy          View, start, cancel, or retry a deployment
+  rollback        Revert part of an application back to a previous deployment
+  new-build       Create a new build configuration
+  start-build     Start a new build
+  cancel-build    Cancel running, pending, or new builds
+  import-image    Imports images from a Docker registry
+  tag             Tag existing images into image streams
+
+Application Management Commands:
+  get             Display one or many resources
+  describe        Show details of a specific resource or group of resources
+  edit            Edit a resource on the server
+  set             Commands that help set specific features on objects
+  label           Update the labels on a resource
+  annotate        Update the annotations on a resource
+  expose          Expose a replicated application as a service or route
+  delete          Delete one or more resources
+  scale           Change the number of pods in a deployment
+  autoscale       Autoscale a deployment config, deployment, replication controller, or replica set
+  secrets         Manage secrets
+  serviceaccounts Manage service accounts in your project
+
+Troubleshooting and Debugging Commands:
+  logs            Print the logs for a resource
+  rsh             Start a shell session in a pod
+  rsync           Copy files between local filesystem and a pod
+  port-forward    Forward one or more local ports to a pod
+  debug           Launch a new instance of a pod for debugging
+  exec            Execute a command in a container
+  proxy           Run a proxy to the Kubernetes API server
+  attach          Attach to a running container
+  run             Run a particular image on the cluster
+  cp              Copy files and directories to and from containers.
+
+Advanced Commands:
+  adm             Tools for managing a cluster
+  create          Create a resource by filename or stdin
+  replace         Replace a resource by filename or stdin
+  apply           Apply a configuration to a resource by filename or stdin
+  patch           Update field(s) of a resource using strategic merge patch
+  process         Process a template into list of resources
+  export          Export resources so they can be used elsewhere
+  extract         Extract secrets or config maps to disk
+  idle            Idle scalable resources
+  observe         Observe changes to resources and react to them (experimental)
+  policy          Manage authorization policy
+  auth            Inspect authorization
+  convert         Convert config files between different API versions
+  import          Commands that import applications
+
+Settings Commands:
+  logout          End the current server session
+  config          Change configuration files for the client
+  whoami          Return information about the current session
+  completion      Output shell completion code for the specified shell (bash or zsh)
+
+Other Commands:
+  help            Help about any command
+  version         Display client and server versions
+
+Use "oc <command> --help" for more information about a given command.
+Use "oc options" for a list of global command-line options (applies to all commands).
+
+----
+As you see explaining all options here, will take another 2 day workshop, so let's just pick out what we need:
+
+* At the beginning login to your cluster with `oc login -u developer -p <anypassword>`. This will authenticate you
+  as a default developer user, which has an empty `myproject` project space assigned.
+* If you need to perform administrative tasks you login with `oc login -u system:admin`. You will then have
+  the _cluster-admin_ role assigned. Be aware that this power comes with responsibility ;-)
+* With `oc get <resourceType>` you can list different resourcess:
+  ** _all_: lists everything
+  ** _pods_: the colocated containers
+  ** _rc_: the replication controllers
+  ** _deployments_: the deployments
+  ** _builds_: the builds that render source code into containers
+  ** _imagestreams_: the managed streams of deployable Docker images
+  ** _services_: the internal endpoints
+  ** _routes_: the exposed (externally accessible) endpoint
+* `oc explain <resourceType>` gives you more details on the various resource types available.
+* `oc create` basically creates a resources. In most cases we would use corresponding descriptor files, which can be
+  formatted in JSON or YAML with `oc create -f <filePath>`.
+* Similarly we can also delete resources with `oc delete <resourceType> <resourceName>`
+
+
+=== Building and deploying into Openshift
+
+So let's build and deploy a minimalistic single container application. Navigate to
+`${WORKSHOP_ROOT}/code/spring-boot-demo0` and then perform the following commands:
+
+[source,listing]
+```
+oc login -u developer                                                         <1>
+eval $(minishift docker-env)                                                  <2>
+docker login -u developer -p $(oc whoami -t) $(minishift openshift registry)  <3>
+mvn clean package                                                             <4>
+docker build -t hello-world0 .                                                <5>
+docker tag hello-world0 $(minishift openshift registry)/myproject/hello-world0
+docker push $(minishift openshift registry)/myproject/hello-world0            <6>
+```
+(1) Login to the Openshift cluster
+(2) Apply the local docker environment
+(3) We have to login into the Openshift Docker registry.
+(4) Build the project (using spring boot maven build, creating a self contained jar).
+(5) Build and tag your application Docker image
+(6) Push thhe Docker image into the Openshift registry
+
+Openshift/Kubernetes requires that we define a target state the cluster then tries
+to accommodate with. So we define that we want one replica of our Docker image being deployed as
+`hello-world0` application:
+
+[source,yaml]
+.manual/deployment.yaml
+----
+apiVersion: extensions/v1
+kind: Deployment
+metadata:
+  labels:
+    name: hello-world0
+    visualize: "true"
+  name: hello-world0
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        name: hello-world0
+        app: hello-world0
+        visualize: "true"
+    spec:
+      containers:
+      - name: hello-world0
+        image: 172.30.1.1:5000/myproject/hello-world0:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+          - containerPort: 8090
+----
+
+Given that we can deploy our app as follows:
+
+[source,listing]
+----
+oc create -f manual/deployment.yaml
+----
+
+We can check if our deployment has been successfull:
+
+[source,listing]
+----
+$ oc get pods | grep hello-world0
+hello-world0-961750511-ctqmd     1/1       Running     0          18m
+----
+
+So we want now test our app. But this is not yet possible, since the container is managed in an internal
+virtual network managed by the Openshift container. To access our container we have to create an accessible
+endpoint. In Kubernetes this is called a _service_. Finally we want to make our application not only accessible
+through an endpoint IP address but also via a resolvable name. For that we also need a _route_, which exposes
+the service:
+
+*Defining the Service*
+
+[source,listing]
+.manual/service.yaml
+----
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    name: hello0
+    expose: "true"
+  name: hello0
+spec:
+  type: LoadBalancer
+  ports:
+    - port: 80
+      targetPort: 8090
+  selector:
+    app: hello-world0
+----
+
+*Defining the Route*
+
+
+[source,yaml]
+.manual/route.yaml
+----
+apiVersion: v1
+kind: Route
+metadata:
+  name: hello0
+spec:
+  to:
+    kind: Service
+    name: hello0
+----
+
+*Creating the Service and Route*
+
+And finally create the service endpoint and the route:
+
+[source,listing]
+----
+oc create -f manual/service.yaml
+oc create -f manual/route.yaml
+----
+
+NOTE: On a first look this might create the impression everything is more complicated. But effectively
+      Kubernetes adds a tremendous amount of features that Docker does not support, but are
+      indispensable in real operations. Also with the next upcoming Docker release Kubernetes will be
+      officially supported by Docker as default orchestration solution.
+
+Having completed all tasks our app now should be accessible under `$(minishift openshift service -u hello)/hello/World`.
+
+
+=== Deploying using Fabric8 Plugin
+
+The Fabric8 project (http://fabric8.io) also comes along with a powerful set of tools for working with Kubernetes.
+One of the tools provided is the Fabric8 Maven Plugin, which allows to easily integrate with Kubernetes (or Openshift)
+directly from your Maven project. The plugin provides different levels of customization:
+
+* *no configuration*: just build and deploy the application using reasonable defaults.
+* *Plugin based configuration*: Configure the deployment by using Maven plugin configuration.
+* *External configuration*: Add custom descriptors under `src/main/fabric8` and/or `src/main/docker` and
+  let the plugin leverage these templates.
+* *A mix of plugin and external configuration* is also supported.
+
+So let's start with the most simple case and just add the plugin to
+your `pom.xml`:
+
+[source,xml]
+.pom.xml
+----
+...
+<build>
+    <plugins>
+      ...
+      <plugin>
+        <groupId>io.fabric8</groupId>
+        <artifactId>fabric8-maven-plugin</artifactId>
+        <version>3.5.22</version>
+        <executions>
+          <execution>
+            <goals>
+              <goal>resource</goal>
+              <goal>build</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+</build>
+...
+----
+
+Given that you can easily let the plugin do the deployment:
+
+NOTE: you need a valid session with your Openshift cluster (ensure `oc login` is called before
+      running the plugin.
+
+[source,listing]
+----
+$ mvn clean install fabric8:deploy
+...
+[INFO]
+[INFO] <<< fabric8-maven-plugin:3.5.22:deploy (default-cli) < install @ spring-boot-demo1 <<<
+[INFO]
+[INFO]
+[INFO] --- fabric8-maven-plugin:3.5.22:deploy (default-cli) @ spring-boot-demo1 ---
+[INFO] F8: Using OpenShift at https://192.168.99.104:8443/ in namespace myproject with manifest C:\Users\atsti\Documents\workspace-tvd\docker-workshop\code\spring-boot-demo1\target\classes\META-INF\fabric8\openshift.yml
+[INFO] OpenShift platform detected
+[INFO] Using project: myproject
+[INFO] Creating a Service from openshift.yml namespace myproject name spring-boot-demo1
+[INFO] Created Service: \target\fabric8\applyJson\myproject\service-spring-boot-demo1.json
+[INFO] Using project: myproject
+[INFO] Creating a DeploymentConfig from openshift.yml namespace myproject name spring-boot-demo1
+[INFO] Created DeploymentConfig: \target\fabric8\applyJson\myproject\deploymentconfig-spring-boot-demo1.json
+[INFO] F8: HINT: Use the command `oc get pods -w` to watch your pods start up
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD SUCCESS
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time: 28.394 s
+[INFO] Finished at: 2017-11-08T01:50:23+01:00
+[INFO] Final Memory: 60M/527M
+[INFO] ------------------------------------------------------------------------
+----
+
+But what happened effectively in the background:
+
+. The application and the Docker image was built.
+. The docker image was pushed to the Openshift Docker registry and registered in a corresponding *image-stream*.
+. All this is effectively done in Openshift by a *build* running in Openshift.
+. A *deployment-config* was created that deyploys the container on a openshift node along with a *replication-controller*
+  that monitors the container's health.
+. A *service* was created providing an accessible endpoint.
+
+So quite a lot happened ;-) By default everything should be up and running. To make your application even more
+easily accessible, we will also create a route (under Windows it might be even necessary to make it accessible at
+all:
+
+[source,listing]
+----
+$ oc expose spring-boot-demo1
+route "spring-boot-demo1" exposed
+
+----
+
+The plugin itself is highly customizable and we recommend to have a closer look. Unfortunately for the given workshop
+we will not further discuss it. If all went good, you should now having your application accessible under
+`$(minishift openshift service -u spring-boot-demo1)/hello/World`:
+
+image::images/demo1.PNG[]
+
+
+=== Image Streams
+
+An image stream comprises any number of Docker-formatted container images identified by tags. It presents a single
+virtual view of related images, similar to an image repository, and may contain images from any of the following:
+
+* Its own image repository in OpenShift Origin’s integrated registry
+* Other image streams
+* Image repositories from external registries
+
+Image streams can be used to automatically perform an action when new images are created. Builds and deployments
+can watch an image stream to receive notifications when new images are added and react by performing a build or
+deployment, respectively. For a curated set of image streams, see the OpenShift Image Streams and Templates library.
+
+For example, if a deployment is using a certain image and a new version of that image is created, a deployment
+could be automatically performed.
+
+An image stream can be defined very easily:
+
+[source,yaml]
+----
+apiVersion: v1
+kind: ImageStream
+metadata:
+  name: demo3-images
+spec:
+  lookupPolicy:
+    local: false
+----
+
+=== Build Configs
+
+Build configurations define a build process for new Docker images. There are three types of builds possible
+
+* a Docker build using a Dockerfile
+* a Source-to-Image build that uses a specially prepared base image that accepts source code that it can make
+  runnable, and
+* a custom build that can run _arbitrary_ Docker images as a base and accept the build parameters.
+
+Builds run on the cluster and on completion are pushed to the Docker registry specified in the "output" section.
+A build can be triggered via a webhook, when the base image changes, or when a user manually requests a new build be
+created.
+
+Each build created by a build configuration is numbered and refers back to its parent configuration. Multiple builds
+can be triggered at once. Builds that do not have "output" set can be used to test code or run a verification build.
+
+In our workshop we would like to build a project right away from a Spring Boot application. This can be done by
+using the `Source` build type and a S2I builder image that knows how to create container images from a
+Spring Boot application project. We use an image from codecentric, which actually supports Spring boot projects
+built with Maven or Gradle:
+
+[source,yaml]
+.build-config.yaml
+----
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  labels:
+    app: demo3
+  name: demo3
+spec:
+  failedBuildsHistoryLimit: 5
+  nodeSelector: null
+  output:
+    to:
+      kind: ImageStreamTag
+      name: 'demo3-images:latest'
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    contextDir: /code/spring-boot-demo0
+    git:
+      uri: 'https://github.com/atsticks/docker-workshop.git'
+    type: Git
+  strategy:
+    sourceStrategy:
+      from:
+        kind: ImageStreamTag
+        name: 'springboot-maven3-centos:latest'
+    type: Source
+  successfulBuildsHistoryLimit: 5
+  triggers:
+    - imageChange:
+        lastTriggeredImageID: >-
+          codecentric/springboot-maven3-centos@sha256:b39d58f7beaf97c68047f82a45f74ee1173d162d36f066caa5f11496629f7b13
+      type: ImageChange
+    - type: ConfigChange
+----
+
+For details on S2I and how to build your own builder images please refer to
+https://github.com/openshift/source-to-image.
+
+
+=== Jenkins integration (aka Pipelines)
+
+Openshift also comes with full Jenkins integration in form of the *Pipeline build strategy*. This
+strategy allows developers to define a Jenkins pipeline for execution by the Jenkins pipeline plugin.
+The build can be started, monitored, and managed by OpenShift Origin in the same way as any other build type.
+
+Pipeline workflows are defined in a Jenkinsfile, either embedded directly in the build configuration, or supplied
+in a Git repository and referenced by the build configuration.
+
+The first time a project defines a build configuration using a Pipeline strategy, OpenShift Origin instantiates
+a Jenkins server to execute the pipeline. Subsequent Pipeline build configurations in the project share this
+Jenkins server. Hereby we can use Jenkins and it's workflow capabilities to build our own customized build pipeline.
+The S2I build steps defined earlier can be reused, which is incredibly useful.
+
+So let's define an simple pipeline build:
+
+[source,yaml]
+.build-config.yaml
+----
+apiVersion: v1
+kind: BuildConfig
+metadata:
+  labels:
+    name: demo3-pipeline
+  name: demo3-pipeline
+spec:
+  output: {}
+  postCommit: {}
+  resources: {}
+  runPolicy: Serial
+  source:
+    type: None
+  strategy:
+    jenkinsPipelineStrategy:
+      jenkinsfile: |-
+        try {
+           timeout(time: 20, unit: 'MINUTES') {
+              node {
+                  stage('build') {
+                    openshiftBuild(buildConfig: 'demo3', showBuildLogs: 'true')
+                  }
+              }
+           }
+           checkpoint "Should we deploy?"
+           node{
+                  stage('deploy') {
+                    openshiftDeploy(deploymentConfig: 'demo3')
+                  }
+           }
+        } catch (err) {
+           echo "in catch block"
+           echo "Caught: ${err}"
+           currentBuild.result = 'FAILURE'
+           throw err
+        }
+    type: JenkinsPipeline
+  triggers:
+    - github:
+        secret: secret101
+      type: GitHub
+    - generic:
+        secret: secret101
+      type: Generic
+----
+
+Similarly we can create the pipeline with `oc create -f pipeline.yml`. We then can trigger a Jenkins pipeline
+build:
+
+image::images/PipelineInAction.PNG[]
+
+After clicking on _View log_, we are forwarded to our ephemeral Jenkins instance:
+
+image::images/JenkinsInAction.PNG[]
+
+Summarizing you have seen there is incredible power and flexibility ready to be used. Additionally nothing
+is hard-coded and everything can easily be adapted to match your requirements.
+
+
+=== Uncovered Topics
+
+Kubernetes/Openshift and it's integration into existing setup and environments as well as it's capabilities is
+a session on it's own. Nevertheless you should have a good impression now, what is possible. Nevertheless
+we wanted to point out for two aspects not discussed:
+
+* We did not have discussed the inner working of *Pods and Replication Controllers*, health checks, restarting and
+  deployment strategies, deployment rollbakc and maintenance functionality.
+* We did also not discuss options to transparently enable call tracing throughout the whole Openshift/Kubernetes
+  cluster. The same is true for other operational topics such as centralized log collection, analysis, automatic alerting
+  and monitoring.
+* Also regarding the integration with existing network infrastructure, TSL endpoints, firewall rule configuration
+  and SDN networking has been consciously ignored.
+* One important aspect is also the handling of persistent container data including the
+  comparison of the capabilities of various containerized persistence strategies (SQL, NoSQL, distributed storage
+  systems etc).
+
+So let us know, which topics you are intertested in the most, so we can create similar workshops for these areas as well!
+
+
+

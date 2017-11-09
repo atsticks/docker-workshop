@@ -7,40 +7,28 @@
 <<<
 image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
 
-== Prerequisites
+<<<
+include::prerequisites.adoc[]
 
-=== Requirements
+== Credits
 
-You will need a machine with at least `7GB RAM` and `8GB free disk space` available. Linux and MaxOS work best.
-Windows works as well, but may require additional installation steps.
-
-=== Docker
-
-Check you have latest version of docker installed:
-
-```shell
-docker version
-```
-
-* If you don't have docker installed, check [here](https://docs.docker.com/installation/#installation)
-  ** For *Windows*: follow instructions provided [here](https://docs.docker.com/engine/installation/windows/).
-  ** For *Linux*: follow instructions provided [here](https://docs.docker.com/engine/installation/linux/).
-  ** For *Mac OS* (Yosemite or newer), please download Docker for Mac [here](https://download.docker.com/mac/stable/Docker.dmg).
-  ** Older docker package for *OSes older* than Yosemite -- Docker Toolbox located [here](https://www.docker.com/products/docker-toolbox).*
-* If you're not on the latest version, it will prompt you to update
-* If you're not on docker group you might need to prefix commands with `sudo`. See [here](http://docs.docker.com/installation/ubuntulinux/#giving-non-root-access) for details about it.
-
-NOTE: Under Windows the latest nnative container support requires Windows Professional or Server Licensing. Older
-or other version of windows still require the legacy Docker Toolbox installation.
-
-If all is working you are ready for the workshop...
+This workshop contains content from http://harbur.io[harbur.io].
 
 <<<
-
 include::docker-basics/01-getting-started.adoc[]
 
 <<<
-
 include::docker-basics/02-working-with-images.adoc[]
 
 <<<
+include::docker-machine/docker-machine.adoc[]
+
+<<<
+include::docker-compose/docker-compose.adoc[]
+
+<<<
+include::jenkins/jenkins.adoc[]
+
+<<<
+include::openshift/openshift.adoc[]
+

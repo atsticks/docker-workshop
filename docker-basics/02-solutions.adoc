@@ -1,6 +1,6 @@
 image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
 
-## Solutions Part 2 - Working with Images
+## Solutions - Working with Images
 
 ### Exercise 1: BUILD a Git Client Container Interactively
 
@@ -94,15 +94,15 @@ Then tag your image under the registry namespace and push it there:
 
 On Linux:
 ```
-docker tag hello-world localhost:5000/$(whoami)/hello-world
-docker push localhost:5000/$(whoami)/hello-world
+docker tag hello-world localhost:5000/myproject/hello-world
+docker push localhost:5000/myproject/hello-world
 ```
 
 On Windows/Mac:
 ```
 REGISTRY=$(docker-machine ip default):5000
-docker tag hello-world $REGISTRY/$(whoami)/hello-world
-docker push $REGISTRY/$(whoami)/hello-world
+docker tag hello-world $REGISTRY/myproject/hello-world
+docker push $REGISTRY/myproject/hello-world
 ```
 
 * **tag**: Tag an image into a repository

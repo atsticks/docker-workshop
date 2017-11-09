@@ -1,0 +1,38 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+== Exercises - Jenkins
+
+=== Exercise 1 (15 min)
+
+Based on the possible solutions described, let us adapt our build to
+perform the following task:
+
+- Creating our own Jenkins agent image with the Docker CLI added
+- pushing that client image to our registry
+- Replacing the agent container in Jenkins with our new Docker enabled container
+- Redirecting the agent's Docker CLI to our parent Docker container
+
+*HINTS*
+
+* Use `benhall/dind-jenkins-agent` as base image.
+* Follow the instructions on https://docs.docker.com/engine/installation/linux/docker-ce/ubuntu/#install-docker-ce-1
+* For installing `apt-add-repository` follow the instructions here
+
+If all is successful our custom build should finish successfully and a new Docker image
+is added to our registry.
+
+
+=== Exercise 2 (20 min)
+
+With the Docker enabled image, now lets extend our build to simulate a simple staging workflow across several registries
+all controlled by a Jenkins script.
+
+- Start an additional Docker registry for your productive images (how should now have
+  two local Docker registries running on your machine).
+- Before building our image let us test our software.
+- Then build the new image.
+- Deploy the image as a test container and let the user accept or deny the build
+  as a valid build.
+- If the user denies the build, stop here. Otherwise also tag the build as a new productive
+  build in the productive registry.
+

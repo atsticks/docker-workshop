@@ -9,7 +9,13 @@
 include::docker-basics/01-solutions.adoc[]
 
 <<<
-
 include::docker-basics/02-solutions.adoc[]
 
 <<<
+include::docker-compose/solutions.adoc[]
+
+<<<
+include::jenkins/solutions.adoc[]
+
+<<<
+include::openshift/solutions.adoc[]

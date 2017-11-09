@@ -1,8 +1,8 @@
 image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
 
-= Docker One Day Trip - Getting started
+== Getting started
 
-== Commands
+=== Commands
 
 Check the available docker commands
 
@@ -14,7 +14,7 @@ docker
 * For more info, type `docker help COMMAND` (e.g. `docker help run`)
 
 
-== RUN a "Hello World" container
+=== RUN a "Hello World" container
 
 ```
 docker container run busybox echo "Hello World"
@@ -36,7 +36,7 @@ when executing _docker container run_.
 * It prints `Hello World` and exits
 
 
-== RUN an interactive Container
+=== RUN an interactive Container
 
 Now let's start a container, open a console session in the container and execute some commands:
 
@@ -49,7 +49,7 @@ docker run -it busybox sh
 * **-t**: Allocate a pseudo-tty
 
 
-== RUN a Container with a pipeline
+=== RUN a Container with a pipeline
 
 Let's push some host output directly into the container using a pipeline. E.g. let's count the
 words for a file:
@@ -59,7 +59,7 @@ $ cat /etc/fstab | docker run -i alpine wc -l
 6
 ```
 
-== The container environment
+=== The container environment
 
 Let's now take a look at process tree running in a container:
 
@@ -79,8 +79,12 @@ What you see:
 * As you can see, the process runs in a very limited and isolated environment. The PID of the process is 1,
   so it does not see all other processes running on your host machine.
 
+TIP: Also the _docker_ command itself is using environment variables to determine the target endpoint of the
+     Docker container the command is communicating with:
+     `DOCKER_CERT_PATH,DOCKER_TLS_VERIFY,DOCKER_HOST,DOCKER_MACHINE_NAME`
 
-=== Envrionment variables
+
+==== Envrionment variables
 
 By default only a few environment variables are set. Also the environment is rather different from your host
 environment:
@@ -101,7 +105,7 @@ MESSAGE=Hello world
 HOME=/root
 ```
 
-=== The container file system
+==== The container file system
 
 If we look at the container's file system we will see the OS directories are not here, as well:
 
@@ -110,7 +114,7 @@ $ docker container run busybox ls -l /home
 total 0
 ```
 
-=== The container Network
+==== The container Network
 
 Networking in Docker containers is isolated, as well. Let's look at the interfaces inside a running container:
 
@@ -167,7 +171,7 @@ image::images/server-started.PNG[]
 Press `Ctrl-C` to stop the server container.
 
 
-=== Daemons
+==== Daemons
 
 Our last python server example obviously worked in foreground. But is is easy to run it as a background daemon task:
 
@@ -189,7 +193,7 @@ $ explorer http://192.168.99.100:5000
 As expected it is still running.
 
 
-=== Inspecting running containers
+==== Inspecting running containers
 
 We can use `container ls` command to view all running containers:
 
@@ -214,7 +218,7 @@ $ docker container logs webserver
 ```
 
 
-=== Attaching to a running container**
+==== Attaching to a running container**
 
 We can execute a process that joins a container namespace using `exec` command:
 
@@ -252,7 +256,7 @@ Hallo!
 ```
 
 
-=== Starting and stopping containers
+==== Starting and stopping containers
 
 To stop and start container we can use `container stop` and `container start` commands:
 
@@ -269,12 +273,12 @@ a conflicting name.
 <<<
 image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
 
-== A bit of background
+=== A bit of background
 
 Effectively a Docker container is a set of linux processes that run isolated from the rest of the processes.
 Hereby multiple linux subsystems help to implement the container concepts:
 
-=== Namespaces
+==== Namespaces
 
 Namespaces create isolated stacks of linux primitives for a running process:
 
@@ -287,11 +291,11 @@ to get its own "root" filesystem and map directories from one location on the ho
 * _IPC_ namespace is used to isolate inter-process communication (e.g. message queues).
 * _USER_ namespace allows container processes have different users and IDs from the host OS.
 
-=== Control groups
+==== Control groups
 
 Kernel feature that limits, accounts for, and isolates the resource usage (CPU, memory, disk I/O, network, etc.)
 
-=== Capabilities
+==== Capabilities
 
 Capabilitites provide enhanced permission checks on the running process, and can limit the interface configuration,
 even for a root user.
@@ -299,9 +303,9 @@ even for a root user.
 Refer to http://crosbymichael.com/creating-containers-part-1.html for additional low level details.
 
 
-== Other container operations
+=== Other container operations
 
-=== Importing Host Filesystem into a Container
+==== Importing Host Filesystem into a Container
 
 What if we want to expose a directory from our host system into the container? For this we can use host volume mounts:
 
@@ -323,6 +327,7 @@ This command "mounted" our current working directory inside the container, so it
 inside the container! All changes that we do in this repository will be immediately seen in the container's `home`
 directory.
 
+<<<
 include::01-exercises.adoc[]
 
 

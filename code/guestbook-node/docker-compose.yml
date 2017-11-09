@@ -8,3 +8,9 @@ services:
       - "8088:3000"
     depends_on:
       - redis
+  web2:
+      build: .
+      ports:
+        - "8089:3000"
+      depends_on:
+        - redis

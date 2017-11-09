@@ -1,0 +1,120 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+== Solutions - Docker Compose
+
+=== Solution 1 (Fix our Docker build)
+
+Based on the possible solutions described, let us adapt our build to
+perform the following task:
+
+- Creating our own Jenkins agent image with the Docker CLI added by defining the following build file:
+
+[source, listing]
+.Adding docker to the slave image
+----
+$ docker container run -it benhall/dind-jenkins-agent /bin/sh
+# apt-get remove docker docker-engine docker.io
+# apt-get update
+# apt-get install linux-image-extra-$(uname -r) linux-image-extra-virtual
+... (ignore any errors)
+# apt-get install apt-transport-https ca-certificates curl
+# apt-get install software-properties-common
+# curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -
+# apt-key fingerprint 0EBFCD88
+# add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+# apt-get update
+# apt-get install docker-ce
+# exit
+----
+
+This will stop your docker container. Now let's build an image containing the changes applied (the installed Docker
+client):
+
+[source, listing]
+.Build and tag the extended image
+----
+$ docker commit -a "Anatole Tresch" -m "Docker enabled Jenkins Slave" 8e934ffd8567 \
+        localhost:5000/build/jenkins-docker-slave:latest
+sha256:815d899dd923b30631faad43a98a79cd3564c29fce84a6d2cb092c393e012817
+
+----
+
+Then push the image to your registry, and pull it to ensure everything works:
+
+[source, listing]
+.Push and pull the extended image
+----
+$ docker push localhost:5000/build/jenkins-docker-slave:latest
+The push refers to a repository [localhost:5000/build/jenkins-docker-slave]
+eae0335097d9: Pushed
+65e4eb0ec30e: Pushed
+9d525d2e6392: Pushed
+bceeb9ef8cf4: Pushed
+21c3a84d1311: Pushed
+5f70bf18a086: Pushed
+babfbae534b9: Pushed
+fdcb6cb7da38: Pushed
+4a88531d8793: Pushed
+latest: digest: sha256:7cc8a191674fcb53394d35b76b18d74253b87de049dd0c106967afe3ba576bf2 size: 2208
+
+$ docker image pull localhost:5000/build/jenkins-docker-slave:latest
+latest: Pulling from build/jenkins-docker-slave
+Digest: sha256:7cc8a191674fcb53394d35b76b18d74253b87de049dd0c106967afe3ba576bf2
+Status: Image is up to date for localhost:5000/build/jenkins-docker-slave:latest
+
+----
+
+Now you should be able to replace the Jenkins agent configuration with your new Docker enabled image:
+
+
+
+If all is successful our custom build should finish successfully and a new Docker image
+is added to our registry.
+
+
+=== Exercise 2 (Define a staged build with Jenkins workflow)
+
+Now lets extend our build to simulate a simple staging workflow across several registries
+all controlled by Jenkins.
+
+1. Start an additional Docker registry for your productive images:
+
+[source,listing]
+---
+docker run -d -p 5001:5000 --name registry-prod registry:2
+---
+
+2. Build and test your software, e.g. by executing `mvn clean test package`.
+3. Then build the new image: `docker build -t myapp .`
+4. Tag the image built:
+
+On Linux:
+```
+docker tag myapp localhost:5000/myproject/myapp
+docker push localhost:5000/myproject/myapp
+```
+
+On Windows/Mac:
+```
+REGISTRY=$(docker-machine ip default):5000
+docker tag myapp $REGISTRY/myproject/myapp
+docker push $REGISTRY/myproject/myapp
+```
+
+5. Deploy the image as a test container and let the user accept or deny the build
+   as a valid build, e.g. by running `docker run -d -p 8080:8080 myapp:latest
+5. Let the user select, if the image should be promoted to production.
+6. When the version should be promoted, tag and push the image also to the production registry:
+
+On Linux:
+```
+docker tag myapp localhost:5001/myproject/myapp
+docker push localhost:5001/myproject/myapp
+```
+
+On Windows/Mac:
+```
+REGISTRY=$(docker-machine ip default):5001
+docker tag myapp $REGISTRY/myproject/myapp
+docker push $REGISTRY/myproject/myapp
+```

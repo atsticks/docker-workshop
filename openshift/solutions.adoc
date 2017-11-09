@@ -1,0 +1,37 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+== Solutions - Openshift
+
+=== Exercise 1- Deploy your Java application of choice into Openshift
+
+Look at the example files in code/demo3-pipeline.
+
+
+=== Exercise 2 - How to build up a multi stage pipeline
+
+. Map all stages to different namespaces, e.g. `mypreject-DEV.myproject-TEST,myproject-PROD`.
+. Define image streams in all stages.
+. Build new images, if triggered by source code or configuration changes.
+. If tests fail, abort the pipeline.
+. If all tests are successful, you can decide to automatically deploy your change, or
+  to add a manual review and test step to your latest test stage pipeline.
+. If the new release has been accepted, the user can continue the pipeline process,
+  which will tag the new image into the production image stream, which automatically
+  will perform a production upgrade to the new version. Corresponding monitoring and
+  health check functionality will ensure the release will not result in any downtime:
+
+Tagging an image on the image stream of the next stage hereby is simple:
+[source,listing]
+----
+# propagate from dev to test
+oc tag myproject-dev/myapp:latest myproject-test/myapp:latest
+----
+
+Additionally you need to assign corresponding permissions to your users, e.g. to `developer`:
+
+[source,listing]
+----
+oc adm policy add-role-to-user image-tagger developer -n myproject-test
+----
+
+

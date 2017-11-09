@@ -1,6 +1,6 @@
 image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
 
-## Exercises Part 2 - Working with Docker Images
+## Exercises - Working with Images
 
 ### Exercise 1: BUILD a Git Client Container Interactively
 
@@ -30,7 +30,7 @@ Create an Apache Server Container with `Dockerfile`:
 
 ### Exercise 4: Push your webserver Image to a local Registry
 
-* Start a local registry (call it `registry` ) and expose it's port `5000`.
+* Start a local Docker registry (call it `registry` ) and expose it's port `5000`.
 * Then tag your webserver image under the registry namespace.
 * Push your website to the local Registry.
 

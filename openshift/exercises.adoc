@@ -1,0 +1,24 @@
+image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+
+== Exercises - Openshift
+
+=== Exercise 1 (30 min)
+
+Take a Java application of your choice and try to deploy it in Openshift:
+
+* use S2I, if possible
+* reuse/adapt the examples in code/demo3-pipeline
+
+
+=== Exercise 2 (20 min or at home)
+
+Think how a multi-staged pipeline with active user acceptance for a final deploy can be
+built given the following tools:
+
+* Kubernetes Namespaces (aka projects in Openshift)
+* Jenkins pipelines
+* Image Streams
+* Docker Image Tagging Functions
+* Openshift Image Stream Tagging Functions
+* Openshift Build Triggers
+

@@ -1,11 +1,11 @@
 image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
 
-= Docker One Day Trip - Working with Images
+== Working with Images
 
 So far we have been using container images downloaded from Docker's public registry. In this tutorial we will
 uncover further features and see how we can build and manager our own images.
 
-== Searching for images
+=== Searching for images
 
 Docker allows you to search for images:
 
@@ -15,8 +15,8 @@ docker search -s 10 nginx
 
 * **-s**: Only displays with at least x stars
 
-== Building a Container Image from scratch
-=== Building our first container
+=== Building a Container Image from scratch
+==== Building our first container
 
 The `Dockerfile` is a special file that instructs `docker build` command how to build an image.
 So let's create the most simple Dockerfile:
@@ -52,7 +52,7 @@ Successfully built 4dce466cf3de
 ```
 
 
-=== Viewing images
+==== Viewing images
 
 You can use `docker images ls` command to display images that we have built (or installed):
 
@@ -73,7 +73,7 @@ NOTE: Docker images are very different from virtual image formats. Because Docke
       image, so it could be as tiny as several bytes!
 
 
-=== Running the image
+==== Running the image
 
 So let's run our image. Surprisingly this gives as an error:
 
@@ -119,9 +119,9 @@ $ docker run hello /hello.sh
 My first DockerImage says Hello !
 ```
 
-=== Versioning
+==== Versioning
 
-Let us adapt the +hello.sh+ file and roll a new version of our image called `v2`:
+Let us adapt the `hello.sh` file and roll a new version of our image called `v2`:
 
 ```bash
 echo "My first DockerImage says AGAIN Hello $@!" > hello.sh
@@ -188,7 +188,7 @@ echo "My first DockerImage says AGAIN Hello $@!"
 ```
 
 
-=== Using the Container Environment
+==== Using the Container Environment
 
 We can pass environment variables during build and during runtime as well. As an example we edit our +hello.sh+
 shell script:
@@ -245,7 +245,6 @@ My DockerImage says Hello World and others!
 
 ==== Build layers and Caching
 
-===== _Caching_:
 Let's take a look at the image in the tutorials's cache directory:
 
 ```bash
@@ -321,7 +320,8 @@ sometimes introduces problems.
 
 NOTE: You can always turn caching off by using the `--no-cache=true` option for the `docker build` command.
 
-===== _Layers_:
+*_Layers_*
+
 Docker images are composed of layers:
 
 image::https://docs.docker.com/engine/userguide/storagedriver/images/image-layers.jpg[]
@@ -330,7 +330,7 @@ Every layer is a the result of the execution of a command in the Dockerfile. Bas
 +Dockerfile+ adds a layer.
 
 
-===== _An example_:
+*_An example_*
 
 The most frequently used command is `RUN`: it executes the command in a container,
 captures the output and records it as an image layer.
@@ -379,7 +379,7 @@ need it though, Docker will save you some space by re-using the base layer, so i
 would not repeat each other.
 
 
-== Operations with images
+=== Operations with images
 
 Executing `docker image` without parameters gives you
 a summary of other image related commands:
@@ -412,7 +412,7 @@ Run 'docker image COMMAND --help' for more information on a command.
 ```
 
 
-=== Listing the locally installed images
+==== Listing the locally installed images
 
 You are already familiar with one command, `docker image ls` to get a listing of all currently installed images:
 
@@ -433,7 +433,7 @@ hello               latest              47060b048841        3 hours ago         
 ```
 
 
-=== Inspecting images
+==== Inspecting images
 
 You can inspect a cached image:
 
@@ -524,7 +524,7 @@ $ docker image inspect busybox
 
 ```
 
-=== Removing images and containers
+==== Removing images and containers
 
 Let's start with removing the image that takes too much disk space:
 
@@ -560,7 +560,7 @@ Untagged: mycurl:latest
 Deleted: sha256:50928f386c704610fb16d3ca971904f3150f3702db962a4770958b8bedd9759b
 ```
 
-=== Tagging images
+==== Tagging images
 
 `docker image tag` helps us to tag und untag images.
 
@@ -594,7 +594,7 @@ hello                                         v2                  195aa31a5e4d  
 Both `v7` and `latest` point to the same image ID `d0ec3cfed6f7`.
 
 
-== Publishing images
+=== Publishing images
 
 Images are distributed with a special service - `docker registry`.
 Let us spin up a local registry:
@@ -623,7 +623,7 @@ Digest: sha256:c472a7ec8ab2b0db8d0839043b24dbda75ca6fa8816cfb6a58e7aaf3714a1423
 Status: Image is up to date for 127.0.0.1:5000/hello:v7
 ```
 
-== Importing and Exporting of Images
+=== Importing and Exporting of Images
 
 `docker image save` exports a given image to a tar-archive:
 
@@ -669,7 +669,7 @@ However, once those tarballs are produced, load/import are there to:
   multiple images in a tarball).
 
 
-== Pulling Images
+=== Pulling Images
 
 You can also _pull_ images for installing them into the local cache:
 
@@ -696,7 +696,7 @@ mariadb             latest              18017b242307        9 days ago          
 
 ```
 
-== Further image commands
+=== Further image commands
 
 You can get the history of an image:
 
