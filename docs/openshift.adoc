@@ -1,4 +1,4 @@
-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+image::trivadis-logo.svg[http://trivadis.com]
 
 == Using Docker with Openshift
 
@@ -321,7 +321,7 @@ So let's build and deploy a minimalistic single container application. Navigate 
 `${WORKSHOP_ROOT}/code/spring-boot-demo0` and then perform the following commands:
 
 [source,listing]
-```
+----
 oc login -u developer                                                         <1>
 eval $(minishift docker-env)                                                  <2>
 docker login -u developer -p $(oc whoami -t) $(minishift openshift registry)  <3>
@@ -329,7 +329,7 @@ mvn clean package                                                             <4
 docker build -t hello-world0 .                                                <5>
 docker tag hello-world0 $(minishift openshift registry)/myproject/hello-world0
 docker push $(minishift openshift registry)/myproject/hello-world0            <6>
-```
+----
 (1) Login to the Openshift cluster
 (2) Apply the local docker environment
 (3) We have to login into the Openshift Docker registry.
@@ -540,7 +540,7 @@ The plugin itself is highly customizable and we recommend to have a closer look.
 we will not further discuss it. If all went good, you should now having your application accessible under
 `$(minishift openshift service -u spring-boot-demo1)/hello/World`:
 
-image::images/demo1.PNG[]
+image::demo1.PNG[]
 
 
 === Image Streams
@@ -704,11 +704,11 @@ spec:
 Similarly we can create the pipeline with `oc create -f pipeline.yml`. We then can trigger a Jenkins pipeline
 build:
 
-image::images/PipelineInAction.PNG[]
+image::PipelineInAction.PNG[]
 
 After clicking on _View log_, we are forwarded to our ephemeral Jenkins instance:
 
-image::images/JenkinsInAction.PNG[]
+image::JenkinsInAction.PNG[]
 
 Summarizing you have seen there is incredible power and flexibility ready to be used. Additionally nothing
 is hard-coded and everything can easily be adapted to match your requirements.
@@ -733,5 +733,8 @@ we wanted to point out for two aspects not discussed:
 
 So let us know, which topics you are intertested in the most, so we can create similar workshops for these areas as well!
 
+
+<<<
+include::openshift-exercises.adoc[]
 
 

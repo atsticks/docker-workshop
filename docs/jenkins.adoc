@@ -1,4 +1,4 @@
-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+image::trivadis-logo.svg[http://trivadis.com]
 
 == Using Docker with Jenkins
 
@@ -38,12 +38,12 @@ This may also be found at: /var/jenkins_home/secrets/initialAdminPassword
 Then open the Jenkins dashboard at `http://${docker-machine ip default}:8080`.
 Enter the unlock-password and continue the initial setup:
 
-image::images/JenkinsUnlock.PNG[]
+image::JenkinsUnlock.PNG[]
 
 Install the default plugins and setup your user account. Finally
 you are forwarded to the dashboard:
 
-image::images/JenkinsDashboard.PNG[]
+image::JenkinsDashboard.PNG[]
 
 
 === Install the Jenkins Docker Plugin
@@ -184,3 +184,6 @@ configure any kind of customized workflows. So it should be rather easy to defin
 uses this workflow functionality:
 
 We will revisit the Jenkins workflow functionality in the second part of this workshop.
+
+<<<
+include::jenkins-exercises.adoc[]

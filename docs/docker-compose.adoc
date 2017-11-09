@@ -1,4 +1,4 @@
-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+image::trivadis-logo.svg[http://trivadis.com]
 
 == Docker Compose
 
@@ -208,5 +208,5 @@ docker-compose down
 
 
 <<<
-include::exercises.adoc[]
+include::docker-compose-exercises.adoc[]
 

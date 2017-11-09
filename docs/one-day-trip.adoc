@@ -1,0 +1,32 @@
+= AD - Docker One Day Trip
+:toc:
+:toclevels: 2
+:toc-title: AD-Docker One-Day-Trip
+
+<<<
+image::trivadis-logo.svg[http://trivadis.com]
+
+include::prerequisites.adoc[]
+
+== Credits
+
+This workshop contains content from http://harbur.io[harbur.io].
+
+<<<
+include::basics.adoc[]
+
+<<<
+include::images.adoc[]
+
+<<<
+include::docker-machine.adoc[]
+
+<<<
+include::docker-compose.adoc[]
+
+<<<
+include::jenkins.adoc[]
+
+<<<
+include::openshift.adoc[]
+

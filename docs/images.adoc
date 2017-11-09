@@ -1,4 +1,4 @@
-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+image::trivadis-logo.svg[http://trivadis.com]
 
 == Working with Images
 
@@ -324,7 +324,7 @@ NOTE: You can always turn caching off by using the `--no-cache=true` option for 
 
 Docker images are composed of layers:
 
-image::https://docs.docker.com/engine/userguide/storagedriver/images/image-layers.jpg[]
+image::image-layers.jpg[]
 
 Every layer is a the result of the execution of a command in the Dockerfile. Basically every command in a
 +Dockerfile+ adds a layer.
@@ -715,7 +715,7 @@ IMAGE               CREATED             CREATED BY          SIZE                
 ```
 
 <<<
-include::02-exercises.adoc[]
+include::images-exercises.adoc[]
 
 
 

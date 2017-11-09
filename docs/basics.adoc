@@ -1,4 +1,4 @@
-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+image::trivadis-logo.svg[http://trivadis.com]
 
 == Getting started
 
@@ -166,7 +166,7 @@ your docker host machine.
 
 If opened in a brwoser, you will see the directory listing:
 
-image::images/server-started.PNG[]
+image::server-started.PNG[]
 
 Press `Ctrl-C` to stop the server container.
 
@@ -271,7 +271,7 @@ a conflicting name.
 
 
 <<<
-image::https://www.trivadis.com/sites/all/themes/custom/img/trivadis-logo.svg[http://trivadis.com]
+image::trivadis-logo.svg[http://trivadis.com]
 
 === A bit of background
 
@@ -328,6 +328,6 @@ inside the container! All changes that we do in this repository will be immediat
 directory.
 
 <<<
-include::01-exercises.adoc[]
+include::basics-exercises.adoc[]
 
 
